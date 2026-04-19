@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegalDoc Verifier AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="container">
+    <header class="text-center mt-4 mb-4">
+        <h1>LegalDoc Verifier AI</h1>
+        <p class="text-muted">Extract, Analyze, and Simplify your Legal Documents</p>
+    </header>
+
+    <div class="disclaimer glass-panel">
+        <strong>CRITICAL DISCLAIMER</strong>
+        This tool provides assistive AI analysis only. All outputs must be reviewed and validated by a qualified legal professional. The platform is not a substitute for legal counsel, does not provide legal opinions, and carries risks of inaccuracies. 
+    </div>
+
+    <!-- Auth Section -->
+    <div id="auth-section" class="glass-panel text-center" style="max-width: 400px; margin: 0 auto;">
+        <h2>Login</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <input type="text" id="username" class="form-control" placeholder="Username" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" class="form-control" placeholder="Password" required>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%;">Access Portal</button>
+        </form>
+        <p class="mt-4"><small class="text-muted">No account? <a href="#" id="toggle-register" style="color: var(--secondary-color);">Register here</a></small></p>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Welcome, <span id="user-greeting">User</span></h2>
+            <button id="logout-btn" class="btn-danger">Logout</button>
+        </div>
+
+        <div class="glass-panel mb-4">
+            <h3>Upload New Document</h3>
+            <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="command-input" class="form-control" placeholder="Type your command (e.g., Summarize easily in 50 words)" style="margin-bottom: 0px; font-weight: bold; color: var(--accent-color);">
+                <button id="record-btn" class="btn-primary" style="background: var(--danger); white-space: nowrap;">🎤 Record</button>
+            </div>
+            <div id="recording-status" class="text-muted hidden" style="margin-bottom: 15px; font-size: 0.9em;">🔴 Recording... (Click again to stop)</div>
+            
+            <div class="upload-area" id="drop-zone" style="margin-bottom: 15px;">
+                <input type="file" id="file-input" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.txt">
+                <p>Drag & Drop your legal document here, or <span style="color: var(--secondary-color); font-weight: bold;">click to browse</span></p>
+                <small class="text-muted">Supported formats: PDF, JPG, PNG, TXT</small>
+                <div id="selected-file-name" style="margin-top: 10px; color: var(--success); font-weight: bold;"></div>
+            </div>
+            
+            <div class="text-center">
+                <button id="process-btn" class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 12px; display: none;">🚀 Process Document</button>
+            </div>
+            
+            <div id="upload-status" class="mt-4 text-center hidden">
+                Processing document with AI... this may take a moment.
+            </div>
+        </div>
+
+        <div id="results-panel" class="glass-panel hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+                <div class="tabs" style="border: none; margin: 0; padding: 0;">
+                    <button class="tab-btn active" data-tab="summary">📝 Your Requested Summary</button>
+                    <button class="tab-btn" data-tab="qa">💬 Ask Questions (Q&A)</button>
+                </div>
+                <!-- Language Selector restored -->
+                <select id="language-selector" class="form-control" style="width: auto; padding: 6px;">
+                    <option value="en">English (Original)</option>
+                    <option value="hi">Hindi (हिंदी)</option>
+                    <option value="ta">Tamil (தமிழ்)</option>
+                    <option value="te">Telugu (తెలుగు)</option>
+                    <option value="ml">Malayalam (മലയാളം)</option>
+                </select>
+            </div>
+
+            <div class="tab-content" id="tab-summary">
+                <p id="result-summary" style="font-size: 1.1rem; line-height: 1.8; white-space: pre-wrap;">Loading summary...</p>
+            </div>
+            
+            <div class="tab-content hidden" id="tab-qa">
+                <div id="chat-history" style="height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="color: var(--text-muted); text-align: center; margin-top: 20px;">Ask anything about the document you just uploaded!</div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: stretch;">
+                    <input type="text" id="qa-input" class="form-control" placeholder="What does this clause mean?" style="margin-bottom: 0;">
+                    <button id="qa-send-btn" class="btn-primary" style="white-space: nowrap; padding: 0 24px; flex-shrink: 0; align-self: stretch;">Send 🚀</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="glass-panel mt-4">
+            <h3>Your Recent Documents</h3>
+            <ul id="history-list" style="list-style: none; padding: 0;">
+                <!-- History items will be injected here -->
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

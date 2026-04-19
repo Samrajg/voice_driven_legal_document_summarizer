@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+instance/
+*.db
+backend/uploads/
+temp_input.wav
+response.wav
+response.mp3
+.idea/
+.VSCode/
+*.swp
