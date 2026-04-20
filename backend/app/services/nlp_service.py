@@ -1,5 +1,6 @@
 import os
 import re
+import requests
 import pandas as pd
 from transformers import pipeline
 import nltk
@@ -157,6 +158,22 @@ def analyze_text(text, command=None):
 def get_answer(question, document_text):
     if not document_text or len(document_text.strip()) < 50:
         return "Not enough text in document to answer questions."
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+            prompt = f"Context from legal document:\n{document_text[:10000]}\n\nUser Question: {question}\n\nProvide a helpful, precise answer based on the document context."
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}]
+            }
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+            response.raise_for_status()
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            print("Gemini API error:", e)
+            # Fallback to tf-idf
     
     sentences = sent_tokenize(document_text)
     if not sentences:
