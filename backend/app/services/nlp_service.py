@@ -2,7 +2,7 @@ import os
 import re
 import requests
 import pandas as pd
-from transformers import pipeline
+from transformers import pipeline, BartTokenizer
 import nltk
 from nltk.tokenize import sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -34,10 +34,13 @@ def transcribe_audio_file(file_path):
 # Load summarizer
 print("Loading AI Summarization Model...")
 try:
-    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+    MODEL_NAME = "sshleifer/distilbart-cnn-12-6"
+    tokenizer = BartTokenizer.from_pretrained(MODEL_NAME)
+    summarizer = pipeline("summarization", model=MODEL_NAME, tokenizer=tokenizer, device=-1)
 except Exception as e:
     print(f"Warning: Could not load summarizer, error: {e}")
     summarizer = None
+    tokenizer = None
 
 # Load legal terms dictionary
 LEGAL_TO_PLAIN = {}
@@ -73,86 +76,169 @@ def simplify_legal_text(text):
         simplified = re.sub(pattern, plain, simplified, flags=re.IGNORECASE)
     return simplified
 
-def break_into_points(text):
-    sentences = re.split(r"[.!?]+", text)
-    sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
-    bullets = ""
-    for s in sentences[:12]:
-        if len(s) > 180:
-            s = s[:180] + "..."
-        bullets += f"• {s}\n"
-    return bullets
+def parse_instruction(instruction: str) -> dict:
+    cfg = {}
+    if not instruction:
+        instruction = "summarize"
+    text = instruction.lower().strip()
 
-def parse_command(command):
-    if not command or command.strip() == "":
-        return {"mode": "explain", "target_words": 150, "style": "simple_bullets"}
-    
-    cmd = command.lower()
-    
-    # Extract requested word count
-    length_match = re.search(r'(\d{1,4})\s*(?:word|words)', cmd)
-    target_words = int(length_match.group(1)) if length_match else 150
-    
-    # Detect mode
-    if any(w in cmd for w in ["elaborate", "detailed", "long", "explain fully", "more detail", "in detail"]):
-        mode = "elaborate"
-        target_words = max(target_words, 400)
-    elif any(w in cmd for w in ["summarize", "summary", "short", "brief"]):
-        mode = "summarize"
-        target_words = min(target_words, 120)
+    m = re.search(r"(\d+)\s*words?", text)
+    cfg["words"] = int(m.group(1)) if m else None
+
+    m = re.search(r"(\d+)\s*para(?:graph)?s?", text)
+    cfg["paragraphs"] = int(m.group(1)) if m else None
+
+    m = re.search(r"(\d+)\s*sentences?", text)
+    cfg["sentences"] = int(m.group(1)) if m else None
+
+    m = re.search(r"(\d+)\s*(?:points?|lines?|items?|facts?|bullets?)", text)
+    cfg["points"] = int(m.group(1)) if m else None
+
+    if any(w in text for w in ["bullet", "point", "list", "item", "line"]):
+        cfg["format"] = "bullets"
+    elif cfg.get("paragraphs"):
+        cfg["format"] = "paragraphs"
     else:
-        mode = "explain"
-    
-    # Detect style
-    if any(w in cmd for w in ["bullet", "bullets", "points"]):
-        style = "bullets"
-    elif any(w in cmd for w in ["simple", "easy", "plain", "like im 15", "beginner"]):
-        style = "simple"
-    elif any(w in cmd for w in ["technical", "legal", "formal"]):
-        style = "technical"
+        cfg["format"] = "prose"
+
+    if any(w in text for w in ["eli5", "explain like", "simple", "layman", "easy"]):
+        cfg["style"] = "simple"
+    elif any(w in text for w in ["key takeaway", "main point", "highlight", "important"]):
+        cfg["style"] = "takeaways"
+    elif any(w in text for w in ["tldr", "tl;dr", "short", "brief", "quick"]):
+        cfg["style"] = "brief"
+    elif any(w in text for w in ["detail", "technical", "expert", "thorough"]):
+        cfg["style"] = "detailed"
     else:
-        style = "simple_bullets"
-    
-    return {"mode": mode, "target_words": target_words, "style": style}
+        cfg["style"] = "standard"
+
+    return cfg
+
+def chunk_by_tokens(text: str, chunk_size: int = 800, overlap: int = 50) -> list:
+    if not tokenizer: return [text[:3000]]
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    chunks = []
+    i = 0
+    while i < len(tokens):
+        chunk_tokens = tokens[i:i + chunk_size]
+        chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True)
+        chunks.append(chunk_text)
+        i += chunk_size - overlap
+    return chunks
+
+def summarize_with_hf(text: str, min_len: int = 60, max_len: int = 200) -> str:
+    if not summarizer: return text[:500] + "..."
+    chunks = chunk_by_tokens(text, chunk_size=800, overlap=50)
+    summaries = []
+
+    for i, chunk in enumerate(chunks[:5]):
+        if len(chunk.strip()) < 100:
+            continue
+        try:
+            result = summarizer(chunk, max_length=max_len, min_length=min(min_len, max_len - 10), do_sample=False, truncation=True)
+            summaries.append(result[0]["summary_text"])
+        except Exception as e:
+            print("Summarization chunk error:", e)
+
+    if not summaries:
+        return "Could not generate summary."
+
+    combined = " ".join(summaries)
+    if len(summaries) > 1 and tokenizer:
+        combined_tokens = tokenizer.encode(combined, add_special_tokens=False)
+        if len(combined_tokens) > 800:
+            combined = tokenizer.decode(combined_tokens[:800], skip_special_tokens=True)
+        try:
+            final = summarizer(combined, max_length=max_len, min_length=min_len, do_sample=False, truncation=True)
+            return final[0]["summary_text"]
+        except Exception as e:
+            print("Final summarization pass error:", e)
+
+    return combined
+
+def extract_sentences_from_doc(text: str, n: int) -> list:
+    raw_sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    cleaned = [s.strip() for s in raw_sentences if len(s.strip().split()) >= 6]
+    if not cleaned: return []
+    if len(cleaned) >= n:
+        step = len(cleaned) / n
+        return [cleaned[int(i * step)] for i in range(n)]
+    return cleaned
+
+def apply_constraints(summary: str, cfg: dict, raw_text: str = "") -> str:
+    sentences = re.split(r'(?<=[.!?])\s+', summary.strip())
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    if cfg.get("points"):
+        n = cfg["points"]
+        doc_sentences = extract_sentences_from_doc(raw_text, n) if raw_text else []
+        if doc_sentences:
+            numbered = [f"{i+1}. {s}" for i, s in enumerate(doc_sentences)]
+        else:
+            numbered = [f"{i+1}. {s}" for i, s in enumerate(sentences[:n])]
+        while len(numbered) < n:
+            numbered.append(f"{len(numbered)+1}. (Refer to document for more details)")
+        return "\n".join(numbered)
+
+    if cfg.get("sentences"):
+        sentences = sentences[:cfg["sentences"]]
+        summary = " ".join(sentences)
+
+    if cfg.get("words"):
+        summary = " ".join(summary.split()[:cfg["words"]])
+        if not summary.endswith((".", "!", "?")):
+            summary += "."
+
+    if cfg.get("format") == "bullets":
+        summary = "\n".join(f"  - {s}" for s in sentences[:10] if s)
+    elif cfg.get("format") == "paragraphs" and cfg.get("paragraphs"):
+        n = cfg["paragraphs"]
+        per = max(1, len(sentences) // n)
+        paras = [" ".join(sentences[i*per:(i+1)*per]) for i in range(n)]
+        summary = "\n\n".join(p for p in paras if p)
+
+    if cfg.get("style") == "simple":
+        summary = "In simple words:\n\n" + summary
+    elif cfg.get("style") == "takeaways":
+        summary = "Key Takeaways:\n\n" + "\n".join(f"  - {s}" for s in sentences[:5] if s)
+    elif cfg.get("style") == "brief":
+        summary = sentences[0] if sentences else summary
+
+    return summary.strip()
 
 def analyze_text(text, command=None):
-    """
-    Main NLP entry point matching the user's process_summary logic.
-    """
     if not text or len(text.strip()) < 50:
         return {
             "summary": "Could not extract enough text.",
             "simplified": []
         }
         
-    params = parse_command(command)
+    cfg = parse_instruction(command)
     
-    # Summarize base
-    base_summary = text[:200] + "..." # Fallback
-    if summarizer:
-        try:
-            chunk = text[:1600]
-            result = summarizer(chunk, max_length=280, min_length=60, do_sample=False)
-            base_summary = result[0]["summary_text"]
-        except Exception as e:
-            print("Summarization failed:", e)
-
-    if params["mode"] == "elaborate":
-        long_text = simplify_legal_text(text[:4500])
-        easy = break_into_points(long_text) + "\n\n" + base_summary
-    elif params["style"] == "bullets" or params["style"] == "simple_bullets":
-        easy = break_into_points(simplify_legal_text(base_summary))
+    if cfg.get("words"):
+        max_len = max(50, min(cfg["words"] * 2, 300))
+        min_len = max(20, cfg["words"] // 2)
+    elif cfg["style"] == "brief":
+        max_len, min_len = 60, 20
+    elif cfg["style"] == "detailed":
+        max_len, min_len = 300, 100
+    elif cfg.get("points"):
+        max_len = min(cfg["points"] * 40, 400)
+        min_len = min(cfg["points"] * 15, 150)
     else:
-        easy = simplify_legal_text(base_summary)
-        
-    words = easy.split()
-    if len(words) > params["target_words"] + 50:
-        easy = " ".join(words[:params["target_words"] + 30]) + "..."
-        
+        max_len, min_len = 180, 60
+
+    raw_summary = summarize_with_hf(text, min_len=min_len, max_len=max_len)
+    
+    if cfg.get("style") == "simple":
+        raw_summary = simplify_legal_text(raw_summary)
+
+    final_output = apply_constraints(raw_summary, cfg, raw_text=text)
+
     return {
-        "summary": easy,
-        "parameters": params,
-        "raw_base": base_summary
+        "summary": final_output,
+        "parameters": cfg,
+        "raw_base": raw_summary
     }
 
 def get_answer(question, document_text):

@@ -1,0 +1,12 @@
+DIVORCE AGREEMENT
+
+This Divorce Agreement is made on {date} between {party1} and {party2}.
+
+Both parties have mutually agreed to dissolve their marriage due to the following reason:
+{reason}
+
+The parties have agreed to the settlement of their assets and responsibilities as legally required.
+
+Signatures:
+____________________           ____________________
+{party1}                      {party2}

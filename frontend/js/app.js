@@ -34,6 +34,17 @@ const translations = {
         law_bot_desc: "Describe a crime or situation to find relevant IPC sections.",
         find_ipc: "Find IPC Sections",
         suggested_laws: "Suggested IPC Sections:",
+        nav_doc_gen: "Doc Generator",
+        gen_title: "📄 Legal Document Generator",
+        gen_desc: "Select a template and fill in the details to generate a professional legal document.",
+        select_doc_type: "Document Type",
+        choose_template: "-- Choose a Template --",
+        tpl_divorce: "Divorce Agreement",
+        tpl_complaint: "Complaint Letter",
+        tpl_rental: "Rental Agreement",
+        btn_generate: "Generate Document",
+        btn_download: "Download PDF",
+        preview: "Document Preview:",
         // Placeholders
         p_username: "Username",
         p_password: "Password",
@@ -69,6 +80,17 @@ const translations = {
         law_bot_desc: "தொடர்புடைய IPC பிரிவுகளைக் கண்டறிய ஒரு சூழ்நிலையை விவரிக்கவும்.",
         find_ipc: "IPC பிரிவுகளைக் கண்டுபிடி",
         suggested_laws: "பரிந்துரைக்கப்பட்ட IPC பிரிவுகள்:",
+        nav_doc_gen: "ஆவண உருவாக்கி",
+        gen_title: "📄 சட்ட ஆவண உருவாக்கி",
+        gen_desc: "ஒரு தொழில்முறை சட்ட ஆவணத்தை உருவாக்க, ஒரு வார்ப்புருவை தேர்ந்தெடுத்து விவரங்களை நிரப்பவும்.",
+        select_doc_type: "ஆவண வகை",
+        choose_template: "-- ஒரு வார்ப்புருவை தேர்வு செய்க --",
+        tpl_divorce: "விவாகரத்து ஒப்பந்தம்",
+        tpl_complaint: "புகார் கடிதம்",
+        tpl_rental: "வாடகை ஒப்பந்தம்",
+        btn_generate: "ஆவணத்தை உருவாக்கு",
+        btn_download: "PDF பதிவிறக்கம்",
+        preview: "ஆவண முன்னோட்டம்:",
         // Placeholders
         p_username: "பயனர்பெயர்",
         p_password: "கடவுச்சொல்",
@@ -406,6 +428,156 @@ predictLawsBtn.addEventListener('click', async () => {
     }
 });
 
+// Document Generator Logic
+const docTypeSelect = document.getElementById('doc-type-select');
+const dynamicFields = document.getElementById('dynamic-fields');
+const generateDocBtn = document.getElementById('generate-doc-btn');
+const downloadPdfBtn = document.getElementById('download-pdf-btn');
+const generatorOutput = document.getElementById('generator-output');
+
+const templateFields = {
+    'divorce': [
+        { id: 'date', label: 'Date', type: 'date' },
+        { id: 'party1', label: 'Party 1 Name', type: 'text' },
+        { id: 'party2', label: 'Party 2 Name', type: 'text' },
+        { id: 'reason', label: 'Reason for Divorce', type: 'text' }
+    ],
+    'complaint': [
+        { id: 'date', label: 'Date', type: 'date' },
+        { id: 'sender', label: 'Sender Name', type: 'text' },
+        { id: 'receiver', label: 'Receiver Name', type: 'text' },
+        { id: 'issue', label: 'Complaint Issue', type: 'textarea' }
+    ],
+    'rental': [
+        { id: 'landlord', label: 'Landlord Name', type: 'text' },
+        { id: 'tenant', label: 'Tenant Name', type: 'text' },
+        { id: 'property', label: 'Property Address', type: 'text' },
+        { id: 'rent', label: 'Monthly Rent', type: 'text' },
+        { id: 'duration', label: 'Lease Duration', type: 'text' }
+    ]
+};
+
+docTypeSelect.addEventListener('change', (e) => {
+    const docType = e.target.value;
+    dynamicFields.innerHTML = '';
+    generatorOutput.innerText = 'Awaiting input...';
+    downloadPdfBtn.disabled = true;
+
+    if (templateFields[docType]) {
+        templateFields[docType].forEach(field => {
+            const fieldWrapper = document.createElement('div');
+            fieldWrapper.className = 'form-group mt-2';
+            fieldWrapper.style.marginBottom = '10px';
+            
+            const label = document.createElement('label');
+            label.innerText = field.label;
+            label.style.display = 'block';
+            label.style.marginBottom = '5px';
+            label.style.fontSize = '0.9em';
+            
+            let input;
+            if (field.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = 3;
+            } else {
+                input = document.createElement('input');
+                input.type = field.type;
+            }
+            input.id = `gen-${field.id}`;
+            input.className = 'form-control';
+            input.style.marginBottom = '0';
+            
+            fieldWrapper.appendChild(label);
+            fieldWrapper.appendChild(input);
+            dynamicFields.appendChild(fieldWrapper);
+        });
+    }
+});
+
+function gatherGeneratorData() {
+    const docType = docTypeSelect.value;
+    if (!docType) return null;
+    
+    const data = { type: docType };
+    let missing = false;
+    templateFields[docType].forEach(field => {
+        const val = document.getElementById(`gen-${field.id}`).value;
+        if (!val.trim()) missing = true;
+        data[field.id] = val;
+    });
+    if (missing) {
+        alert('Please fill out all fields.');
+        return null;
+    }
+    return data;
+}
+
+generateDocBtn.addEventListener('click', async () => {
+    const payload = gatherGeneratorData();
+    if (!payload) return;
+    
+    showLoader('processing');
+    generateDocBtn.disabled = true;
+    
+    try {
+        let res = await fetch(`${API_BASE}/generator/generate-document`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            generatorOutput.innerText = data.document;
+            downloadPdfBtn.disabled = false;
+        } else {
+            generatorOutput.innerText = `Error: ${data.message}`;
+        }
+    } catch (err) {
+        generatorOutput.innerText = `Failed to generate document.`;
+    } finally {
+        hideLoader();
+        generateDocBtn.disabled = false;
+    }
+});
+
+downloadPdfBtn.addEventListener('click', async () => {
+    const payload = gatherGeneratorData();
+    if (!payload) return;
+    
+    showLoader('processing');
+    try {
+        let res = await fetch(`${API_BASE}/generator/download-pdf`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${payload.type}_document.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Failed to generate PDF.');
+        }
+    } catch (err) {
+        alert('Download failed.');
+    } finally {
+        hideLoader();
+    }
+});
 
 // Localization Trigger
 document.getElementById('language-selector').addEventListener('change', (e) => {

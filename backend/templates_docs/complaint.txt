@@ -1,0 +1,17 @@
+COMPLAINT LETTER
+
+Date: {date}
+From: {sender}
+To: {receiver}
+
+Subject: Official Complaint Regarding the Following Issue
+
+Dear {receiver},
+
+I am writing this letter to formally lodge a complaint regarding the following issue:
+{issue}
+
+I expect a prompt response and resolution to this matter. Please treat this with the utmost urgency.
+
+Sincerely,
+{sender}

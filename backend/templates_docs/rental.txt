@@ -1,0 +1,16 @@
+RENTAL AGREEMENT
+
+This Rental Agreement is entered into by and between {landlord} (the "Landlord") and {tenant} (the "Tenant").
+
+PROPERTY ADDRESS:
+{property}
+
+TERMS OF AGREEMENT:
+1. Rent Amount: The Tenant agrees to pay a monthly rent of {rent}.
+2. Lease Duration: The duration of this lease shall be {duration}.
+
+Both parties agree to abide by the terms set forth above.
+
+Signatures:
+____________________           ____________________
+{landlord} (Landlord)          {tenant} (Tenant)

@@ -15,8 +15,9 @@
         <button id="hamburger-btn" class="icon-btn">☰</button>
         <h2 class="nav-title" data-i18n="app_title">LegalDoc Verifier AI</h2>
     </div>
-    <div class="nav-right">
+    <div class="nav-right" style="display: flex; gap: 15px;">
         <a href="#law-bot-section" class="nav-link" data-i18n="nav_law_bot">Law Bot</a>
+        <a href="#generator-section" class="nav-link" data-i18n="nav_doc_gen">Doc Generator</a>
     </div>
 </nav>
 
@@ -127,9 +128,39 @@
                 <div id="law-bot-output" class="mt-4 text-muted">Awaiting input...</div>
             </div>
         </div>
+        <!-- Legal Document Generator Section -->
+        <div id="generator-section" class="glass-panel mt-4 mb-4">
+            <h3 data-i18n="gen_title">📄 Legal Document Generator</h3>
+            <p class="text-muted mb-4" data-i18n="gen_desc">Select a template and fill in the details to generate a professional legal document.</p>
+            
+            <div class="form-group">
+                <label data-i18n="select_doc_type" style="font-weight: 600; margin-bottom: 8px; display: block;">Document Type</label>
+                <select id="doc-type-select" class="form-control">
+                    <option value="" disabled selected data-i18n="choose_template">-- Choose a Template --</option>
+                    <option value="divorce" data-i18n="tpl_divorce">Divorce Agreement</option>
+                    <option value="complaint" data-i18n="tpl_complaint">Complaint Letter</option>
+                    <option value="rental" data-i18n="tpl_rental">Rental Agreement</option>
+                </select>
+            </div>
+
+            <div id="dynamic-fields" class="form-group">
+                <!-- Fields injected via JS -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="generate-doc-btn" class="btn-primary" style="flex: 1;" data-i18n="btn_generate">Generate Document</button>
+                <button id="download-pdf-btn" class="btn-primary" style="flex: 1; background: var(--secondary-color);" data-i18n="btn_download" disabled>Download PDF</button>
+            </div>
+
+            <div id="generator-results" class="mt-4" style="background: var(--input-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--glass-border); min-height: 150px;">
+                <h4 data-i18n="preview" style="color: var(--primary-color);">Document Preview:</h4>
+                <pre id="generator-output" class="mt-4 text-muted" style="white-space: pre-wrap; font-family: 'Inter', sans-serif;">Awaiting input...</pre>
+            </div>
+        </div>
+
     </div>
 </div>
 
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>
